@@ -56,9 +56,7 @@ use url::Url;
 use uuid::Uuid;
 
 use simple_ldap::{
-    Error, GroupObjectClass, LdapClient, LdapConfig, SimpleDN, SortBy,
-    filter::{ContainsFilter, EqFilter},
-    ldap3::{Mod, Scope},
+    AuthenticationResult, Error, LdapClient, LdapConfig, SimpleDN, SortBy, filter::{ContainsFilter, EqFilter}, ldap3::{Mod, Scope},
 };
 
 pub async fn test_create_record<Client: DerefMut<Target = LdapClient>>(
@@ -762,12 +760,12 @@ pub async fn test_authenticate_success<Client: DerefMut<Target = LdapClient>>(
 
     let filter = EqFilter::from("uid".to_string(), uid.clone());
     let auth_result = client
-        .authenticate(base, uid.as_str(), password.as_str(), Box::new(filter))
+        .authenticate(base, Scope::OneLevel, &filter, "entryDN", password.as_str())
         .await;
 
     client.delete(uid.as_str(), base).await?;
 
-    auth_result?;
+    assert_eq!(auth_result?, AuthenticationResult::Success);
 
     Ok(())
 }
@@ -794,16 +792,15 @@ pub async fn test_authenticate_wrong_password<Client: DerefMut<Target = LdapClie
 
     let filter = EqFilter::from("uid".to_string(), uid.clone());
     let auth_result = client
-        .authenticate(base, uid.as_str(), "definitely-wrong", Box::new(filter))
+        .authenticate(base, Scope::OneLevel, &filter, "entryDN", "definitely-wrong")
+
         .await;
 
     client.delete(uid.as_str(), base).await?;
 
-    match auth_result {
-        Err(Error::AuthenticationFailed(_)) => Ok(()),
-        Err(other) => Err(anyhow!("Unexpected error: {other:?}")),
-        Ok(_) => Err(anyhow!("Authentication succeeded unexpectedly")),
-    }
+    assert_eq!(auth_result?, AuthenticationResult::WrongPassword);
+
+    Ok(())
 }
 
 /***************
@@ -836,7 +833,6 @@ pub fn ldap_config() -> anyhow::Result<LdapConfig> {
         bind_dn: String::from("cn=manager"),
         bind_password: String::from("password"),
         ldap_url: Url::parse("ldap://localhost:1389/dc=example,dc=com")?,
-        dn_attribute: None,
         connection_settings: None,
     };
 
