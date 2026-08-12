@@ -57,7 +57,7 @@ use url::Url;
 use uuid::Uuid;
 
 use simple_ldap::{
-    AuthenticationResult, Error, LdapClient, LdapConfig, SimpleDN, SortBy, filter::{ContainsFilter, EqFilter}, ldap3::{Mod, Scope},
+    AuthenticationResult, Error, GroupObjectClass, LdapClient, LdapConfig, SimpleDN, SortBy, filter::{ContainsFilter, EqFilter}, ldap3::{Mod, Scope},
 };
 
 pub async fn test_create_record<Client: DerefMut<Target = LdapClient>>(
